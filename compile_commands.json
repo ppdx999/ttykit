@@ -1,0 +1,12 @@
+[
+  {
+    "directory": "/home/fujis/ghq/github-home/ppdx999/ttykit",
+    "command": "gcc -Wall -Wextra -std=c99 -Iinclude -c src/terminal.c -o src/terminal.o",
+    "file": "src/terminal.c"
+  },
+  {
+    "directory": "/home/fujis/ghq/github-home/ppdx999/ttykit",
+    "command": "gcc -Wall -Wextra -std=c99 -Iinclude -c examples/hello.c -o examples/hello.o",
+    "file": "examples/hello.c"
+  }
+]

@@ -1,6 +1,9 @@
 # Project binaries
 /examples/hello
 
+# LSP cache
+/.cache/
+
 # Prerequisites
 *.d
 
