@@ -9,7 +9,9 @@ int main(void) {
         return 1;
     }
 
-    printf("Raw mode enabled. Press 'q' to quit.\r\n");
+    tty_enter_alternate_screen();
+
+    printf("Alternate screen! Press 'q' to quit.\r\n");
     printf("Press any key to see its code:\r\n");
 
     char c;
@@ -18,7 +20,7 @@ int main(void) {
         printf("Key: %c (0x%02x)\r\n", (c >= 32 && c < 127) ? c : '.', c);
     }
 
+    tty_leave_alternate_screen();
     tty_disable_raw_mode();
-    printf("Raw mode disabled.\n");
     return 0;
 }

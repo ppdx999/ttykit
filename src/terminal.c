@@ -41,3 +41,11 @@ void tty_disable_raw_mode(void) {
         raw_mode_enabled = 0;
     }
 }
+
+void tty_enter_alternate_screen(void) {
+    write(STDOUT_FILENO, "\x1b[?1049h", 8);
+}
+
+void tty_leave_alternate_screen(void) {
+    write(STDOUT_FILENO, "\x1b[?1049l", 8);
+}
