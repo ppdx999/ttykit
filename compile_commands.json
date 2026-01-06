@@ -6,6 +6,11 @@
   },
   {
     "directory": "/home/fujis/ghq/github-home/ppdx999/ttykit",
+    "command": "gcc -Wall -Wextra -std=c99 -Iinclude -c src/buffer.c -o src/buffer.o",
+    "file": "src/buffer.c"
+  },
+  {
+    "directory": "/home/fujis/ghq/github-home/ppdx999/ttykit",
     "command": "gcc -Wall -Wextra -std=c99 -Iinclude -c examples/hello.c -o examples/hello.o",
     "file": "examples/hello.c"
   }
