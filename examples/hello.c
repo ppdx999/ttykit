@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include "ttykit.h"
 
@@ -10,16 +10,29 @@ int main(void) {
     }
 
     tty_enter_alternate_screen();
+    tty_cursor_hide();
+    tty_clear_screen();
 
-    printf("Alternate screen! Press 'q' to quit.\r\n");
-    printf("Press any key to see its code:\r\n");
+    // Draw at specific positions
+    const char *s1 = "Top-left corner";
+    const char *s2 = "Row 5, Col 10";
+    const char *s3 = "Press 'q' to quit";
+
+    tty_cursor_move(1, 1);
+    write(STDOUT_FILENO, s1, strlen(s1));
+
+    tty_cursor_move(5, 10);
+    write(STDOUT_FILENO, s2, strlen(s2));
+
+    tty_cursor_move(10, 20);
+    write(STDOUT_FILENO, s3, strlen(s3));
 
     char c;
     while (read(STDIN_FILENO, &c, 1) == 1) {
         if (c == 'q') break;
-        printf("Key: %c (0x%02x)\r\n", (c >= 32 && c < 127) ? c : '.', c);
     }
 
+    tty_cursor_show();
     tty_leave_alternate_screen();
     tty_disable_raw_mode();
     return 0;

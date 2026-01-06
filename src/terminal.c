@@ -1,4 +1,5 @@
 #include "ttykit.h"
+#include <stdio.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -48,4 +49,26 @@ void tty_enter_alternate_screen(void) {
 
 void tty_leave_alternate_screen(void) {
     write(STDOUT_FILENO, "\x1b[?1049l", 8);
+}
+
+void tty_cursor_hide(void) {
+    write(STDOUT_FILENO, "\x1b[?25l", 6);
+}
+
+void tty_cursor_show(void) {
+    write(STDOUT_FILENO, "\x1b[?25h", 6);
+}
+
+void tty_cursor_move(int row, int col) {
+    char buf[32];
+    int len = snprintf(buf, sizeof(buf), "\x1b[%d;%dH", row, col);
+    write(STDOUT_FILENO, buf, len);
+}
+
+void tty_cursor_home(void) {
+    write(STDOUT_FILENO, "\x1b[H", 3);
+}
+
+void tty_clear_screen(void) {
+    write(STDOUT_FILENO, "\x1b[2J", 4);
 }

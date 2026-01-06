@@ -9,4 +9,13 @@ void tty_disable_raw_mode(void);
 void tty_enter_alternate_screen(void);
 void tty_leave_alternate_screen(void);
 
+// Cursor control
+void tty_cursor_hide(void);
+void tty_cursor_show(void);
+void tty_cursor_move(int row, int col);
+void tty_cursor_home(void);
+
+// Screen
+void tty_clear_screen(void);
+
 #endif // TTYKIT_H
