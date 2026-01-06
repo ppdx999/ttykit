@@ -17,5 +17,6 @@ void tty_cursor_home(void);
 
 // Screen
 void tty_clear_screen(void);
+int tty_get_size(int *rows, int *cols);
 
 #endif // TTYKIT_H

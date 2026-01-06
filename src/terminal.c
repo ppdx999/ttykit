@@ -1,5 +1,6 @@
 #include "ttykit.h"
 #include <stdio.h>
+#include <sys/ioctl.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -71,4 +72,12 @@ void tty_cursor_home(void) {
 
 void tty_clear_screen(void) {
     write(STDOUT_FILENO, "\x1b[2J", 4);
+}
+
+int tty_get_size(int *rows, int *cols) {
+    struct winsize ws;
+    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1) return -1;
+    if (rows) *rows = ws.ws_row;
+    if (cols) *cols = ws.ws_col;
+    return 0;
 }

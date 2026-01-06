@@ -13,19 +13,23 @@ int main(void) {
     tty_cursor_hide();
     tty_clear_screen();
 
-    // Draw at specific positions
-    const char *s1 = "Top-left corner";
-    const char *s2 = "Row 5, Col 10";
-    const char *s3 = "Press 'q' to quit";
+    int rows, cols;
+    tty_get_size(&rows, &cols);
 
-    tty_cursor_move(1, 1);
-    write(STDOUT_FILENO, s1, strlen(s1));
+    // Draw centered text
+    const char *msg = "Hello, ttykit!";
+    int len = strlen(msg);
+    int row = rows / 2;
+    int col = (cols - len) / 2;
 
-    tty_cursor_move(5, 10);
-    write(STDOUT_FILENO, s2, strlen(s2));
+    tty_cursor_move(row, col);
+    write(STDOUT_FILENO, msg, len);
 
-    tty_cursor_move(10, 20);
-    write(STDOUT_FILENO, s3, strlen(s3));
+    // Show size info at bottom
+    char buf[64];
+    int n = snprintf(buf, sizeof(buf), "Screen: %dx%d  Press 'q' to quit", cols, rows);
+    tty_cursor_move(rows, 1);
+    write(STDOUT_FILENO, buf, n);
 
     char c;
     while (read(STDIN_FILENO, &c, 1) == 1) {
