@@ -12,8 +12,7 @@
 
 #define MAX_ENTRIES 256
 #define MAX_PATH 1024
-#define MAX_PREVIEW_LINES 100
-#define MAX_LINE_LEN 256
+#define MAX_PREVIEW_SIZE (32 * 1024)  // 32KB for preview text
 
 typedef struct {
     char name[256];
@@ -25,8 +24,7 @@ typedef struct {
     Entry entries[MAX_ENTRIES];
     size_t entry_count;
     size_t selected;
-    char preview[MAX_PREVIEW_LINES][MAX_LINE_LEN];
-    size_t preview_lines;
+    char preview[MAX_PREVIEW_SIZE];
     char status[128];
 } AppState;
 
@@ -78,7 +76,7 @@ static void read_directory(AppState *s) {
 
 // Read file preview
 static void read_preview(AppState *s) {
-    s->preview_lines = 0;
+    s->preview[0] = '\0';
 
     if (s->entry_count == 0 || s->selected >= s->entry_count) {
         return;
@@ -86,59 +84,68 @@ static void read_preview(AppState *s) {
 
     Entry *e = &s->entries[s->selected];
     if (e->is_dir) {
-        // strcpy(s->preview[0], "[Directory]");
-        // s->preview_lines = 1;
-				// Show entries in directory instead
-				DIR *dir = opendir(e->name);
-				if (!dir) {
-						strcpy(s->preview[0], "[Cannot open directory]");
-						s->preview_lines = 1;
-						return;
-				}
-				struct dirent *ent;
-				while ((ent = readdir(dir)) != NULL && s->preview_lines < MAX_PREVIEW_LINES) {
-						// Skip . and ..
-						if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) {
-								continue;
-						}
-						strncpy(s->preview[s->preview_lines], ent->d_name, MAX_LINE_LEN - 1);
-						s->preview[s->preview_lines][MAX_LINE_LEN - 1] = '\0';
-						s->preview_lines++;
-				}
-				closedir(dir);
-				if (s->preview_lines == 0) {
-						strcpy(s->preview[0], "[Empty directory]");
-						s->preview_lines = 1;
-				}
+        // Show directory contents
+        char dirpath[MAX_PATH];
+        if (strcmp(e->name, "..") == 0) {
+            // Parent directory
+            strcpy(s->preview, "[Parent Directory]");
+            return;
+        }
+        snprintf(dirpath, sizeof(dirpath), "%s/%s", s->cwd, e->name);
+
+        DIR *dir = opendir(dirpath);
+        if (!dir) {
+            strcpy(s->preview, "[Cannot open directory]");
+            return;
+        }
+
+        size_t offset = 0;
+        struct dirent *ent;
+        while ((ent = readdir(dir)) != NULL && offset < MAX_PREVIEW_SIZE - 256) {
+            if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) {
+                continue;
+            }
+            size_t len = strlen(ent->d_name);
+            memcpy(s->preview + offset, ent->d_name, len);
+            offset += len;
+            s->preview[offset++] = '\n';
+        }
+        if (offset > 0) {
+            s->preview[offset - 1] = '\0';  // Remove last newline
+        } else {
+            strcpy(s->preview, "[Empty directory]");
+        }
+        closedir(dir);
         return;
-    } else {
-			char fullpath[MAX_PATH];
-			snprintf(fullpath, sizeof(fullpath), "%s/%s", s->cwd, e->name);
+    }
 
-			FILE *f = fopen(fullpath, "r");
-			if (!f) {
-					strcpy(s->preview[0], "[Cannot read file]");
-					s->preview_lines = 1;
-					return;
-			}
+    // Regular file
+    char fullpath[MAX_PATH];
+    snprintf(fullpath, sizeof(fullpath), "%s/%s", s->cwd, e->name);
 
-			while (s->preview_lines < MAX_PREVIEW_LINES &&
-						 fgets(s->preview[s->preview_lines], MAX_LINE_LEN, f)) {
-					// Remove newline
-					size_t len = strlen(s->preview[s->preview_lines]);
-					if (len > 0 && s->preview[s->preview_lines][len-1] == '\n') {
-							s->preview[s->preview_lines][len-1] = '\0';
-					}
-					s->preview_lines++;
-			}
+    FILE *f = fopen(fullpath, "r");
+    if (!f) {
+        strcpy(s->preview, "[Cannot read file]");
+        return;
+    }
 
-			fclose(f);
+    size_t offset = 0;
+    char line[512];
+    while (fgets(line, sizeof(line), f) && offset < MAX_PREVIEW_SIZE - 1) {
+        size_t len = strlen(line);
+        if (offset + len >= MAX_PREVIEW_SIZE - 1) {
+            break;
+        }
+        memcpy(s->preview + offset, line, len);
+        offset += len;
+    }
+    s->preview[offset] = '\0';
 
-			if (s->preview_lines == 0) {
-					strcpy(s->preview[0], "[Empty file]");
-					s->preview_lines = 1;
-			}
-		}
+    fclose(f);
+
+    if (offset == 0) {
+        strcpy(s->preview, "[Empty file]");
+    }
 }
 
 // Navigate to parent directory
@@ -189,26 +196,17 @@ static void build_entry_names(AppState *s) {
     }
 }
 
-// Build preview lines array for LIST widget
-static const char *g_preview_lines[MAX_PREVIEW_LINES];
-
-static void build_preview_lines(AppState *s) {
-    for (size_t i = 0; i < s->preview_lines; i++) {
-        g_preview_lines[i] = s->preview[i];
-    }
-}
 
 // Declarative view function
 Widget *view(AppState *s) {
     build_entry_names(s);
-    build_preview_lines(s);
 
     return VBOX(FILL,
         BLOCK(FILL, s->cwd,
             HBOX(FILL,
                 LIST(PCT(30), g_entry_names, s->entry_count, s->selected),
                 BLOCK(FILL, "Preview",
-                    LIST(FILL, g_preview_lines, s->preview_lines, 0)
+                    TEXT(FILL, s->preview)
                 )
             )
         ),

@@ -131,7 +131,36 @@ void widget_list_set_selected(Widget *w, size_t selected) {
 
 static void render_text(Buffer *buf, Rect area, const char *text) {
     if (rect_is_empty(area) || !text) return;
-    buffer_set_str(buf, area.y, area.x, text);
+
+    uint16_t row = 0;
+    const char *line_start = text;
+
+    while (*line_start && row < area.height) {
+        // Find end of line
+        const char *line_end = line_start;
+        while (*line_end && *line_end != '\n') {
+            line_end++;
+        }
+
+        // Copy line to temporary buffer for rendering
+        size_t line_len = line_end - line_start;
+        char line[256];
+        if (line_len > sizeof(line) - 1) {
+            line_len = sizeof(line) - 1;
+        }
+        memcpy(line, line_start, line_len);
+        line[line_len] = '\0';
+
+        buffer_set_str(buf, area.y + row, area.x, line);
+        row++;
+
+        // Move to next line
+        if (*line_end == '\n') {
+            line_start = line_end + 1;
+        } else {
+            break;
+        }
+    }
 }
 
 static void render_block(Buffer *buf, Rect area, const char *title, Widget *child);
