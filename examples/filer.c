@@ -234,7 +234,8 @@ Widget *view(AppState *s) {
       BLOCK(FILL, s->cwd,
             HBOX(FILL,
                  LIST(PCT(30), g_entry_names, s->entry_count, s->selected),
-                 BLOCK(FILL, "Preview", TEXT(FILL, preview_text)))),
+                 VLINE(LEN(1)),
+                 TEXT(FILL, preview_text))),
       TEXT(LEN(1), s->status));
 }
 

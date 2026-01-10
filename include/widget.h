@@ -12,7 +12,8 @@ typedef enum {
   WIDGET_HBOX,
   WIDGET_TEXT,
   WIDGET_BLOCK,
-  WIDGET_LIST
+  WIDGET_LIST,
+  WIDGET_VLINE
 } WidgetType;
 
 // Forward declaration
@@ -57,6 +58,7 @@ struct Widget {
 #define TEXT(c, s) widget_text((c), (s))
 #define BLOCK(c, t, ch) widget_block((c), (t), (ch))
 #define LIST(c, i, n, s) widget_list((c), (i), (n), (s))
+#define VLINE(c) widget_vline((c))
 
 // Frame arena management
 void ui_frame_begin(void);
@@ -69,6 +71,7 @@ Widget *widget_text(Constraint c, const char *text);
 Widget *widget_block(Constraint c, const char *title, Widget *child);
 Widget *widget_list(Constraint c, const char **items, size_t count,
                     size_t selected);
+Widget *widget_vline(Constraint c);
 
 // Set selected index for list widget
 void widget_list_set_selected(Widget *w, size_t selected);

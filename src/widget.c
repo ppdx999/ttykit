@@ -129,6 +129,17 @@ Widget *widget_list(Constraint c, const char **items, size_t count,
   return w;
 }
 
+Widget *widget_vline(Constraint c) {
+  Widget *w = arena_alloc(&g_frame_arena, sizeof(Widget));
+  if (!w)
+    return NULL;
+
+  w->type = WIDGET_VLINE;
+  w->constraint = c;
+
+  return w;
+}
+
 void widget_list_set_selected(Widget *w, size_t selected) {
   if (w && w->type == WIDGET_LIST) {
     w->list.selected = selected;
@@ -224,6 +235,15 @@ void widget_render(Widget *w, Buffer *buf, Rect area) {
   case WIDGET_LIST:
     render_list(buf, area, w->list.items, w->list.count, w->list.selected);
     break;
+
+  case WIDGET_VLINE: {
+    Color line_color = COLOR_INDEX(8);  // Gray
+    for (uint16_t r = area.y; r < area.y + area.height; r++) {
+      buffer_set_cell_styled(buf, r, area.x, '|', line_color,
+                             COLOR_DEFAULT_INIT, ATTR_NONE);
+    }
+    break;
+  }
   }
 }
 
