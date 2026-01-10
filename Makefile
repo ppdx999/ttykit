@@ -20,4 +20,7 @@ src/%.o: src/%.c
 clean:
 	rm -f src/*.o $(EXAMPLES)
 
-.PHONY: all clean
+format:
+	clang-format -i src/*.c include/*.h examples/*.c
+
+.PHONY: all clean format
