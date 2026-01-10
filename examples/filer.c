@@ -25,6 +25,7 @@ typedef struct {
   size_t entry_count;
   size_t selected;
   char preview[MAX_PREVIEW_SIZE];
+  size_t preview_scroll;  // Scroll offset in lines
   char status[128];
 } AppState;
 
@@ -78,6 +79,7 @@ static void read_directory(AppState *s) {
 // Read file preview
 static void read_preview(AppState *s) {
   s->preview[0] = '\0';
+  s->preview_scroll = 0;
 
   if (s->entry_count == 0 || s->selected >= s->entry_count) {
     return;
@@ -200,16 +202,39 @@ static void build_entry_names(AppState *s) {
   }
 }
 
+// Get pointer to n-th line in preview (0-indexed)
+static const char *get_preview_line(AppState *s, size_t line) {
+  const char *p = s->preview;
+  for (size_t i = 0; i < line && *p; i++) {
+    while (*p && *p != '\n') p++;
+    if (*p == '\n') p++;
+  }
+  return p;
+}
+
+// Count total lines in preview
+static size_t count_preview_lines(AppState *s) {
+  size_t count = 0;
+  for (const char *p = s->preview; *p; p++) {
+    if (*p == '\n') count++;
+  }
+  if (s->preview[0] != '\0') count++;  // Last line without newline
+  return count;
+}
+
 // Declarative view function
 Widget *view(AppState *s) {
   build_entry_names(s);
+
+  // Get scrolled preview text
+  const char *preview_text = get_preview_line(s, s->preview_scroll);
 
   return VBOX(
       FILL,
       BLOCK(FILL, s->cwd,
             HBOX(FILL,
                  LIST(PCT(30), g_entry_names, s->entry_count, s->selected),
-                 BLOCK(FILL, "Preview", TEXT(FILL, s->preview)))),
+                 BLOCK(FILL, "Preview", TEXT(FILL, preview_text)))),
       TEXT(LEN(1), s->status));
 }
 
@@ -262,6 +287,29 @@ int main(void) {
     switch (event.type) {
     case EVENT_KEY:
       if (event.key.code == KEY_CHAR) {
+        // Ctrl+D: scroll preview down half page
+        if ((event.key.mod & MOD_CTRL) && event.key.ch == 'd') {
+          size_t total = count_preview_lines(&state);
+          size_t half_page = (rows - 4) / 2;  // Approximate visible lines
+          if (state.preview_scroll + half_page < total) {
+            state.preview_scroll += half_page;
+          } else if (total > 0) {
+            state.preview_scroll = total - 1;
+          }
+          needs_redraw = 1;
+          break;
+        }
+        // Ctrl+U: scroll preview up half page
+        if ((event.key.mod & MOD_CTRL) && event.key.ch == 'u') {
+          size_t half_page = (rows - 4) / 2;
+          if (state.preview_scroll > half_page) {
+            state.preview_scroll -= half_page;
+          } else {
+            state.preview_scroll = 0;
+          }
+          needs_redraw = 1;
+          break;
+        }
         switch (event.key.ch) {
         case 'q':
           running = 0;
