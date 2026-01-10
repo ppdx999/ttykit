@@ -65,20 +65,40 @@ void buffer_set_cell_styled(Buffer *buf, int row, int col, char ch,
     }
 }
 
+#define TAB_WIDTH 4
+
 void buffer_set_str(Buffer *buf, int row, int col, const char *str) {
+    int start_col = col;
     while (*str && col < buf->cols) {
-        buffer_set_cell(buf, row, col, *str);
+        if (*str == '\t') {
+            int spaces = TAB_WIDTH - ((col - start_col) % TAB_WIDTH);
+            for (int i = 0; i < spaces && col < buf->cols; i++) {
+                buffer_set_cell(buf, row, col, ' ');
+                col++;
+            }
+        } else {
+            buffer_set_cell(buf, row, col, *str);
+            col++;
+        }
         str++;
-        col++;
     }
 }
 
 void buffer_set_str_styled(Buffer *buf, int row, int col, const char *str,
                            Color fg, Color bg, uint8_t attrs) {
+    int start_col = col;
     while (*str && col < buf->cols) {
-        buffer_set_cell_styled(buf, row, col, *str, fg, bg, attrs);
+        if (*str == '\t') {
+            int spaces = TAB_WIDTH - ((col - start_col) % TAB_WIDTH);
+            for (int i = 0; i < spaces && col < buf->cols; i++) {
+                buffer_set_cell_styled(buf, row, col, ' ', fg, bg, attrs);
+                col++;
+            }
+        } else {
+            buffer_set_cell_styled(buf, row, col, *str, fg, bg, attrs);
+            col++;
+        }
         str++;
-        col++;
     }
 }
 

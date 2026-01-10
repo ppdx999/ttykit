@@ -131,14 +131,7 @@ void widget_list_set_selected(Widget *w, size_t selected) {
 
 static void render_text(Buffer *buf, Rect area, const char *text) {
     if (rect_is_empty(area) || !text) return;
-
-    size_t len = strlen(text);
-    size_t max_len = area.width;
-    if (len > max_len) len = max_len;
-
-    for (size_t i = 0; i < len; i++) {
-        buffer_set_cell(buf, area.y, area.x + i, text[i]);
-    }
+    buffer_set_str(buf, area.y, area.x, text);
 }
 
 static void render_block(Buffer *buf, Rect area, const char *title, Widget *child);
@@ -270,11 +263,7 @@ static void render_list(Buffer *buf, Rect area, const char **items, size_t count
             }
         }
 
-        // Draw item text
-        size_t len = strlen(item);
-        if (len > area.width) len = area.width;
-        for (size_t j = 0; j < len; j++) {
-            buffer_set_cell_styled(buf, area.y + i, area.x + j, item[j], fg, bg, attrs);
-        }
+        // Draw item text (tab expansion handled by buffer_set_str_styled)
+        buffer_set_str_styled(buf, area.y + i, area.x, item, fg, bg, attrs);
     }
 }
