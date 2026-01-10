@@ -7,7 +7,7 @@ LIB_SRC = $(wildcard src/*.c)
 LIB_OBJ = $(LIB_SRC:.c=.o)
 
 # Examples
-EXAMPLES = examples/hello
+EXAMPLES = examples/basic examples/layout
 
 all: $(EXAMPLES)
 
