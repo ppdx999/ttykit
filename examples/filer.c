@@ -86,37 +86,59 @@ static void read_preview(AppState *s) {
 
     Entry *e = &s->entries[s->selected];
     if (e->is_dir) {
-        strcpy(s->preview[0], "[Directory]");
-        s->preview_lines = 1;
+        // strcpy(s->preview[0], "[Directory]");
+        // s->preview_lines = 1;
+				// Show entries in directory instead
+				DIR *dir = opendir(e->name);
+				if (!dir) {
+						strcpy(s->preview[0], "[Cannot open directory]");
+						s->preview_lines = 1;
+						return;
+				}
+				struct dirent *ent;
+				while ((ent = readdir(dir)) != NULL && s->preview_lines < MAX_PREVIEW_LINES) {
+						// Skip . and ..
+						if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) {
+								continue;
+						}
+						strncpy(s->preview[s->preview_lines], ent->d_name, MAX_LINE_LEN - 1);
+						s->preview[s->preview_lines][MAX_LINE_LEN - 1] = '\0';
+						s->preview_lines++;
+				}
+				closedir(dir);
+				if (s->preview_lines == 0) {
+						strcpy(s->preview[0], "[Empty directory]");
+						s->preview_lines = 1;
+				}
         return;
-    }
+    } else {
+			char fullpath[MAX_PATH];
+			snprintf(fullpath, sizeof(fullpath), "%s/%s", s->cwd, e->name);
 
-    char fullpath[MAX_PATH];
-    snprintf(fullpath, sizeof(fullpath), "%s/%s", s->cwd, e->name);
+			FILE *f = fopen(fullpath, "r");
+			if (!f) {
+					strcpy(s->preview[0], "[Cannot read file]");
+					s->preview_lines = 1;
+					return;
+			}
 
-    FILE *f = fopen(fullpath, "r");
-    if (!f) {
-        strcpy(s->preview[0], "[Cannot read file]");
-        s->preview_lines = 1;
-        return;
-    }
+			while (s->preview_lines < MAX_PREVIEW_LINES &&
+						 fgets(s->preview[s->preview_lines], MAX_LINE_LEN, f)) {
+					// Remove newline
+					size_t len = strlen(s->preview[s->preview_lines]);
+					if (len > 0 && s->preview[s->preview_lines][len-1] == '\n') {
+							s->preview[s->preview_lines][len-1] = '\0';
+					}
+					s->preview_lines++;
+			}
 
-    while (s->preview_lines < MAX_PREVIEW_LINES &&
-           fgets(s->preview[s->preview_lines], MAX_LINE_LEN, f)) {
-        // Remove newline
-        size_t len = strlen(s->preview[s->preview_lines]);
-        if (len > 0 && s->preview[s->preview_lines][len-1] == '\n') {
-            s->preview[s->preview_lines][len-1] = '\0';
-        }
-        s->preview_lines++;
-    }
+			fclose(f);
 
-    fclose(f);
-
-    if (s->preview_lines == 0) {
-        strcpy(s->preview[0], "[Empty file]");
-        s->preview_lines = 1;
-    }
+			if (s->preview_lines == 0) {
+					strcpy(s->preview[0], "[Empty file]");
+					s->preview_lines = 1;
+			}
+		}
 }
 
 // Navigate to parent directory
