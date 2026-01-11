@@ -112,11 +112,13 @@ static void read_preview(AppState *s) {
     }
 
     struct dirent *ent;
-    while ((ent = readdir(dir)) != NULL && s->preview_entry_count < MAX_ENTRIES) {
+    while ((ent = readdir(dir)) != NULL &&
+           s->preview_entry_count < MAX_ENTRIES) {
       if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) {
         continue;
       }
-      strncpy(s->preview_entries[s->preview_entry_count].name, ent->d_name, 255);
+      strncpy(s->preview_entries[s->preview_entry_count].name, ent->d_name,
+              255);
       s->preview_entries[s->preview_entry_count].name[255] = '\0';
 
       // Check if directory
@@ -218,7 +220,8 @@ static void build_entry_names(AppState *s) {
   for (size_t i = 0; i < s->entry_count; i++) {
     g_entry_names[i] = s->entries[i].name;
     // Blue color for directories
-    g_entry_colors[i] = s->entries[i].is_dir ? COLOR_INDEX(12) : COLOR_DEFAULT_INIT;
+    g_entry_colors[i] =
+        s->entries[i].is_dir ? COLOR_INDEX(12) : COLOR_DEFAULT_INIT;
   }
 }
 
@@ -230,7 +233,8 @@ static void build_preview_names(AppState *s) {
   for (size_t i = 0; i < s->preview_entry_count; i++) {
     g_preview_names[i] = s->preview_entries[i].name;
     // Blue color for directories
-    g_preview_colors[i] = s->preview_entries[i].is_dir ? COLOR_INDEX(12) : COLOR_DEFAULT_INIT;
+    g_preview_colors[i] =
+        s->preview_entries[i].is_dir ? COLOR_INDEX(12) : COLOR_DEFAULT_INIT;
   }
 }
 
@@ -285,14 +289,13 @@ Widget *view(AppState *s) {
     preview_widget = TEXT(FILL, preview_text);
   }
 
-  return VBOX(
-      FILL,
-      BLOCK(FILL, s->cwd,
-            HBOX(FILL,
-                 LIST_COLORED(PCT(30), g_entry_names, g_entry_colors,
-                              s->entry_count, s->selected),
-                 VLINE(LEN(1)), preview_widget)),
-      TEXT(LEN(1), s->status));
+  return VBOX(FILL,
+              BLOCK(FILL, s->cwd,
+                    HBOX(FILL,
+                         LIST_COLORED(PCT(30), g_entry_names, g_entry_colors,
+                                      s->entry_count, s->selected),
+                         VLINE(LEN(1)), preview_widget)),
+              TEXT(LEN(1), s->status));
 }
 
 int main(void) {

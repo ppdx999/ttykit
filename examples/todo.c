@@ -131,15 +131,12 @@ Widget *view(AppState *s) {
   }
 
   if (s->input_mode) {
-    return VBOX(FILL,
-                BLOCK(FILL, "Tasks", content),
-                HLINE(LEN(1)),
+    return VBOX(FILL, BLOCK(FILL, "Tasks", content), HLINE(LEN(1)),
                 INPUT(LEN(1), s->input, s->cursor, "New: "),
                 PROGRESS(LEN(1), calc_progress(s), "Progress ", 1),
                 TEXT(LEN(1), s->status));
   } else {
-    return VBOX(FILL,
-                BLOCK(FILL, "Tasks", content),
+    return VBOX(FILL, BLOCK(FILL, "Tasks", content),
                 PROGRESS(LEN(1), calc_progress(s), "Progress ", 1),
                 TEXT(LEN(1), s->status));
   }

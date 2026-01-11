@@ -45,7 +45,8 @@ struct Widget {
     } block;
     struct {
       const char **items;
-      const Color *colors; // Optional per-item foreground colors (NULL = default)
+      const Color
+          *colors; // Optional per-item foreground colors (NULL = default)
       size_t count;
       size_t selected;
     } list;
@@ -55,9 +56,9 @@ struct Widget {
       const char *prompt; // Optional prompt (e.g., "> ")
     } input;
     struct {
-      double value;       // 0.0 to 1.0
-      const char *label;  // Optional label (e.g., "CPU")
-      Color color;        // Bar color
+      double value;      // 0.0 to 1.0
+      const char *label; // Optional label (e.g., "CPU")
+      Color color;       // Bar color
     } gauge;
     struct {
       const double *data; // Array of values (0.0 to 1.0)
@@ -72,20 +73,20 @@ struct Widget {
       const uint16_t *widths; // Column widths (NULL = auto)
     } table;
     struct {
-      const char **items;    // Item labels
-      const int *checked;    // Check states (0 = unchecked, 1 = checked)
-      size_t count;          // Number of items
-      size_t selected;       // Currently selected item
+      const char **items; // Item labels
+      const int *checked; // Check states (0 = unchecked, 1 = checked)
+      size_t count;       // Number of items
+      size_t selected;    // Currently selected item
     } checkbox;
     struct {
-      double value;          // 0.0 to 1.0
-      const char *label;     // Optional label
-      int show_percent;      // Show percentage text
+      double value;      // 0.0 to 1.0
+      const char *label; // Optional label
+      int show_percent;  // Show percentage text
     } progress;
     struct {
-      const char **labels;   // Tab labels
-      size_t count;          // Number of tabs
-      size_t selected;       // Currently selected tab
+      const char **labels; // Tab labels
+      size_t count;        // Number of tabs
+      size_t selected;     // Currently selected tab
     } tabs;
   };
 };
@@ -105,19 +106,23 @@ struct Widget {
 #define TEXT(c, s) widget_text((c), (s))
 #define BLOCK(c, t, ch) widget_block((c), (t), (ch))
 #define LIST(c, i, n, s) widget_list((c), (i), NULL, (n), (s))
-#define LIST_COLORED(c, i, colors, n, s) widget_list((c), (i), (colors), (n), (s))
+#define LIST_COLORED(c, i, colors, n, s)                                       \
+  widget_list((c), (i), (colors), (n), (s))
 #define VLINE(c) widget_vline((c))
 #define HLINE(c) widget_hline((c))
-#define INPUT(c, text, cursor, prompt) widget_input((c), (text), (cursor), (prompt))
-#define GAUGE(c, value, label, color) widget_gauge((c), (value), (label), (color))
-#define SPARKLINE(c, data, count, color) widget_sparkline((c), (data), (count), (color))
-#define TABLE(c, headers, rows, cols, row_cnt, widths) \
+#define INPUT(c, text, cursor, prompt)                                         \
+  widget_input((c), (text), (cursor), (prompt))
+#define GAUGE(c, value, label, color)                                          \
+  widget_gauge((c), (value), (label), (color))
+#define SPARKLINE(c, data, count, color)                                       \
+  widget_sparkline((c), (data), (count), (color))
+#define TABLE(c, headers, rows, cols, row_cnt, widths)                         \
   widget_table((c), (headers), (rows), (cols), (row_cnt), (widths))
-#define CHECKBOX(c, items, checked, count, selected) \
+#define CHECKBOX(c, items, checked, count, selected)                           \
   widget_checkbox((c), (items), (checked), (count), (selected))
-#define PROGRESS(c, value, label, show_pct) \
+#define PROGRESS(c, value, label, show_pct)                                    \
   widget_progress((c), (value), (label), (show_pct))
-#define TABS(c, labels, count, selected) \
+#define TABS(c, labels, count, selected)                                       \
   widget_tabs((c), (labels), (count), (selected))
 
 // Frame arena management

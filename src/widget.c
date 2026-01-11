@@ -305,11 +305,6 @@ static void render_text(Buffer *buf, Rect area, const char *text) {
   }
 }
 
-static void render_block(Buffer *buf, Rect area, const char *title,
-                         Widget *child);
-static void render_list(Buffer *buf, Rect area, const char **items,
-                        const Color *colors, size_t count, size_t selected);
-
 void widget_render(Widget *w, Buffer *buf, Rect area) {
   if (!w || rect_is_empty(area))
     return;
@@ -350,14 +345,110 @@ void widget_render(Widget *w, Buffer *buf, Rect area) {
     render_text(buf, area, w->text.text);
     break;
 
-  case WIDGET_BLOCK:
-    render_block(buf, area, w->block.title, w->block.child);
-    break;
+  case WIDGET_BLOCK: {
+    Color border_color = COLOR_INDEX(8); // Gray
 
-  case WIDGET_LIST:
-    render_list(buf, area, w->list.items, w->list.colors, w->list.count,
-                w->list.selected);
+    // Draw top border
+    buffer_set_cell_styled(buf, area.y, area.x, '+', border_color,
+                           COLOR_DEFAULT_INIT, ATTR_NONE);
+    for (uint16_t c = area.x + 1; c < area.x + area.width - 1; c++) {
+      buffer_set_cell_styled(buf, area.y, c, '-', border_color,
+                             COLOR_DEFAULT_INIT, ATTR_NONE);
+    }
+    if (area.width > 1) {
+      buffer_set_cell_styled(buf, area.y, area.x + area.width - 1, '+',
+                             border_color, COLOR_DEFAULT_INIT, ATTR_NONE);
+    }
+
+    // Draw title
+    const char *title = w->block.title;
+    if (title && area.width > 4) {
+      size_t title_len = strlen(title);
+      size_t max_title = area.width - 4;
+      if (title_len > max_title)
+        title_len = max_title;
+
+      buffer_set_cell_styled(buf, area.y, area.x + 1, ' ', COLOR_DEFAULT_INIT,
+                             COLOR_DEFAULT_INIT, ATTR_NONE);
+      for (size_t i = 0; i < title_len; i++) {
+        buffer_set_cell_styled(buf, area.y, area.x + 2 + i, title[i],
+                               COLOR_INDEX(11), COLOR_DEFAULT_INIT, ATTR_BOLD);
+      }
+      buffer_set_cell_styled(buf, area.y, area.x + 2 + title_len, ' ',
+                             COLOR_DEFAULT_INIT, COLOR_DEFAULT_INIT, ATTR_NONE);
+    }
+
+    // Draw side borders
+    for (uint16_t r = area.y + 1; r < area.y + area.height - 1; r++) {
+      buffer_set_cell_styled(buf, r, area.x, '|', border_color,
+                             COLOR_DEFAULT_INIT, ATTR_NONE);
+      if (area.width > 1) {
+        buffer_set_cell_styled(buf, r, area.x + area.width - 1, '|',
+                               border_color, COLOR_DEFAULT_INIT, ATTR_NONE);
+      }
+    }
+
+    // Draw bottom border
+    if (area.height > 1) {
+      uint16_t bottom = area.y + area.height - 1;
+      buffer_set_cell_styled(buf, bottom, area.x, '+', border_color,
+                             COLOR_DEFAULT_INIT, ATTR_NONE);
+      for (uint16_t c = area.x + 1; c < area.x + area.width - 1; c++) {
+        buffer_set_cell_styled(buf, bottom, c, '-', border_color,
+                               COLOR_DEFAULT_INIT, ATTR_NONE);
+      }
+      if (area.width > 1) {
+        buffer_set_cell_styled(buf, bottom, area.x + area.width - 1, '+',
+                               border_color, COLOR_DEFAULT_INIT, ATTR_NONE);
+      }
+    }
+
+    // Render child in inner area
+    Widget *child = w->block.child;
+    if (child && area.width > 2 && area.height > 2) {
+      Rect inner = {.x = area.x + 1,
+                    .y = area.y + 1,
+                    .width = area.width - 2,
+                    .height = area.height - 2};
+      widget_render(child, buf, inner);
+    }
     break;
+  }
+
+  case WIDGET_LIST: {
+    const char **items = w->list.items;
+    const Color *colors = w->list.colors;
+    size_t count = w->list.count;
+    size_t selected = w->list.selected;
+
+    if (!items)
+      break;
+
+    for (size_t i = 0; i < count && i < area.height; i++) {
+      const char *item = items[i];
+      if (!item)
+        continue;
+
+      int is_selected = (i == selected);
+      Color item_color = (colors && colors[i].type != COLOR_DEFAULT)
+                             ? colors[i]
+                             : COLOR_DEFAULT_INIT;
+      Color fg = is_selected ? COLOR_INDEX(0) : item_color;
+      Color bg = is_selected ? COLOR_INDEX(14) : COLOR_DEFAULT_INIT;
+      uint8_t attrs = is_selected ? ATTR_BOLD : ATTR_NONE;
+
+      // Fill row with background if selected
+      if (is_selected) {
+        for (uint16_t c = area.x; c < area.x + area.width; c++) {
+          buffer_set_cell_styled(buf, area.y + i, c, ' ', fg, bg, attrs);
+        }
+      }
+
+      // Draw item text
+      buffer_set_str_styled(buf, area.y + i, area.x, item, fg, bg, attrs);
+    }
+    break;
+  }
 
   case WIDGET_VLINE: {
     Color line_color = COLOR_INDEX(8); // Gray
@@ -545,8 +636,8 @@ void widget_render(Widget *w, Buffer *buf, Rect area) {
       buffer_set_str_styled(buf, area.y + i, area.x, box, fg, bg, attrs);
       if (is_checked) {
         // Strikethrough for completed items
-        buffer_set_str_styled(buf, area.y + i, area.x + 4, item,
-                              COLOR_INDEX(8), bg, attrs);
+        buffer_set_str_styled(buf, area.y + i, area.x + 4, item, COLOR_INDEX(8),
+                              bg, attrs);
       } else {
         buffer_set_str_styled(buf, area.y + i, area.x + 4, item, fg, bg, attrs);
       }
@@ -642,107 +733,5 @@ void widget_render(Widget *w, Buffer *buf, Rect area) {
     }
     break;
   }
-  }
-}
-
-static void render_block(Buffer *buf, Rect area, const char *title,
-                         Widget *child) {
-  if (rect_is_empty(area))
-    return;
-
-  Color border_color = COLOR_INDEX(8); // Gray
-
-  // Draw top border
-  buffer_set_cell_styled(buf, area.y, area.x, '+', border_color,
-                         COLOR_DEFAULT_INIT, ATTR_NONE);
-  for (uint16_t c = area.x + 1; c < area.x + area.width - 1; c++) {
-    buffer_set_cell_styled(buf, area.y, c, '-', border_color,
-                           COLOR_DEFAULT_INIT, ATTR_NONE);
-  }
-  if (area.width > 1) {
-    buffer_set_cell_styled(buf, area.y, area.x + area.width - 1, '+',
-                           border_color, COLOR_DEFAULT_INIT, ATTR_NONE);
-  }
-
-  // Draw title
-  if (title && area.width > 4) {
-    size_t title_len = strlen(title);
-    size_t max_title = area.width - 4;
-    if (title_len > max_title)
-      title_len = max_title;
-
-    buffer_set_cell_styled(buf, area.y, area.x + 1, ' ', COLOR_DEFAULT_INIT,
-                           COLOR_DEFAULT_INIT, ATTR_NONE);
-    for (size_t i = 0; i < title_len; i++) {
-      buffer_set_cell_styled(buf, area.y, area.x + 2 + i, title[i],
-                             COLOR_INDEX(11), COLOR_DEFAULT_INIT, ATTR_BOLD);
-    }
-    buffer_set_cell_styled(buf, area.y, area.x + 2 + title_len, ' ',
-                           COLOR_DEFAULT_INIT, COLOR_DEFAULT_INIT, ATTR_NONE);
-  }
-
-  // Draw side borders
-  for (uint16_t r = area.y + 1; r < area.y + area.height - 1; r++) {
-    buffer_set_cell_styled(buf, r, area.x, '|', border_color,
-                           COLOR_DEFAULT_INIT, ATTR_NONE);
-    if (area.width > 1) {
-      buffer_set_cell_styled(buf, r, area.x + area.width - 1, '|', border_color,
-                             COLOR_DEFAULT_INIT, ATTR_NONE);
-    }
-  }
-
-  // Draw bottom border
-  if (area.height > 1) {
-    uint16_t bottom = area.y + area.height - 1;
-    buffer_set_cell_styled(buf, bottom, area.x, '+', border_color,
-                           COLOR_DEFAULT_INIT, ATTR_NONE);
-    for (uint16_t c = area.x + 1; c < area.x + area.width - 1; c++) {
-      buffer_set_cell_styled(buf, bottom, c, '-', border_color,
-                             COLOR_DEFAULT_INIT, ATTR_NONE);
-    }
-    if (area.width > 1) {
-      buffer_set_cell_styled(buf, bottom, area.x + area.width - 1, '+',
-                             border_color, COLOR_DEFAULT_INIT, ATTR_NONE);
-    }
-  }
-
-  // Render child in inner area
-  if (child && area.width > 2 && area.height > 2) {
-    Rect inner = {.x = area.x + 1,
-                  .y = area.y + 1,
-                  .width = area.width - 2,
-                  .height = area.height - 2};
-    widget_render(child, buf, inner);
-  }
-}
-
-static void render_list(Buffer *buf, Rect area, const char **items,
-                        const Color *colors, size_t count, size_t selected) {
-  if (rect_is_empty(area) || !items)
-    return;
-
-  for (size_t i = 0; i < count && i < area.height; i++) {
-    const char *item = items[i];
-    if (!item)
-      continue;
-
-    int is_selected = (i == selected);
-    Color item_color =
-        (colors && colors[i].type != COLOR_DEFAULT)
-            ? colors[i]
-            : COLOR_DEFAULT_INIT;
-    Color fg = is_selected ? COLOR_INDEX(0) : item_color;
-    Color bg = is_selected ? COLOR_INDEX(14) : COLOR_DEFAULT_INIT;
-    uint8_t attrs = is_selected ? ATTR_BOLD : ATTR_NONE;
-
-    // Fill row with background if selected
-    if (is_selected) {
-      for (uint16_t c = area.x; c < area.x + area.width; c++) {
-        buffer_set_cell_styled(buf, area.y + i, c, ' ', fg, bg, attrs);
-      }
-    }
-
-    // Draw item text (tab expansion handled by buffer_set_str_styled)
-    buffer_set_str_styled(buf, area.y + i, area.x, item, fg, bg, attrs);
   }
 }
