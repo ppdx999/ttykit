@@ -270,41 +270,6 @@ void widget_list_set_selected(Widget *w, size_t selected) {
 
 // Rendering
 
-static void render_text(Buffer *buf, Rect area, const char *text) {
-  if (rect_is_empty(area) || !text)
-    return;
-
-  uint16_t row = 0;
-  const char *line_start = text;
-
-  while (*line_start && row < area.height) {
-    // Find end of line
-    const char *line_end = line_start;
-    while (*line_end && *line_end != '\n') {
-      line_end++;
-    }
-
-    // Copy line to temporary buffer for rendering
-    size_t line_len = line_end - line_start;
-    char line[256];
-    if (line_len > sizeof(line) - 1) {
-      line_len = sizeof(line) - 1;
-    }
-    memcpy(line, line_start, line_len);
-    line[line_len] = '\0';
-
-    buffer_set_str(buf, area.y + row, area.x, line);
-    row++;
-
-    // Move to next line
-    if (*line_end == '\n') {
-      line_start = line_end + 1;
-    } else {
-      break;
-    }
-  }
-}
-
 void widget_render(Widget *w, Buffer *buf, Rect area) {
   if (!w || rect_is_empty(area))
     return;
@@ -341,9 +306,42 @@ void widget_render(Widget *w, Buffer *buf, Rect area) {
     break;
   }
 
-  case WIDGET_TEXT:
-    render_text(buf, area, w->text.text);
+  case WIDGET_TEXT: {
+    const char *text = w->text.text;
+    if (!text)
+      break;
+
+    uint16_t row = 0;
+    const char *line_start = text;
+
+    while (*line_start && row < area.height) {
+      // Find end of line
+      const char *line_end = line_start;
+      while (*line_end && *line_end != '\n') {
+        line_end++;
+      }
+
+      // Copy line to temporary buffer for rendering
+      size_t line_len = line_end - line_start;
+      char line[256];
+      if (line_len > sizeof(line) - 1) {
+        line_len = sizeof(line) - 1;
+      }
+      memcpy(line, line_start, line_len);
+      line[line_len] = '\0';
+
+      buffer_set_str(buf, area.y + row, area.x, line);
+      row++;
+
+      // Move to next line
+      if (*line_end == '\n') {
+        line_start = line_end + 1;
+      } else {
+        break;
+      }
+    }
     break;
+  }
 
   case WIDGET_BLOCK: {
     Color border_color = COLOR_INDEX(8); // Gray
