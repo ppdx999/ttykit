@@ -27,6 +27,10 @@ typedef struct {
   char preview[MAX_PREVIEW_SIZE];
   size_t preview_scroll; // Scroll offset in lines
   char status[128];
+  // Preview entries for directory preview
+  Entry preview_entries[MAX_ENTRIES];
+  size_t preview_entry_count;
+  int preview_is_dir; // 1 if previewing a directory
 } AppState;
 
 // Read directory contents
@@ -80,6 +84,8 @@ static void read_directory(AppState *s) {
 static void read_preview(AppState *s) {
   s->preview[0] = '\0';
   s->preview_scroll = 0;
+  s->preview_entry_count = 0;
+  s->preview_is_dir = 0;
 
   if (s->entry_count == 0 || s->selected >= s->entry_count) {
     return;
@@ -87,11 +93,13 @@ static void read_preview(AppState *s) {
 
   Entry *e = &s->entries[s->selected];
   if (e->is_dir) {
+    s->preview_is_dir = 1;
     // Show directory contents
     char dirpath[MAX_PATH];
     if (strcmp(e->name, "..") == 0) {
       // Parent directory
       strcpy(s->preview, "[Parent Directory]");
+      s->preview_is_dir = 0; // Use text for special message
       return;
     }
     snprintf(dirpath, sizeof(dirpath), "%s/%s", s->cwd, e->name);
@@ -99,26 +107,35 @@ static void read_preview(AppState *s) {
     DIR *dir = opendir(dirpath);
     if (!dir) {
       strcpy(s->preview, "[Cannot open directory]");
+      s->preview_is_dir = 0;
       return;
     }
 
-    size_t offset = 0;
     struct dirent *ent;
-    while ((ent = readdir(dir)) != NULL && offset < MAX_PREVIEW_SIZE - 256) {
+    while ((ent = readdir(dir)) != NULL && s->preview_entry_count < MAX_ENTRIES) {
       if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) {
         continue;
       }
-      size_t len = strlen(ent->d_name);
-      memcpy(s->preview + offset, ent->d_name, len);
-      offset += len;
-      s->preview[offset++] = '\n';
-    }
-    if (offset > 0) {
-      s->preview[offset - 1] = '\0'; // Remove last newline
-    } else {
-      strcpy(s->preview, "[Empty directory]");
+      strncpy(s->preview_entries[s->preview_entry_count].name, ent->d_name, 255);
+      s->preview_entries[s->preview_entry_count].name[255] = '\0';
+
+      // Check if directory
+      char fullpath[MAX_PATH];
+      snprintf(fullpath, sizeof(fullpath), "%s/%s", dirpath, ent->d_name);
+      struct stat st;
+      if (stat(fullpath, &st) == 0) {
+        s->preview_entries[s->preview_entry_count].is_dir = S_ISDIR(st.st_mode);
+      } else {
+        s->preview_entries[s->preview_entry_count].is_dir = 0;
+      }
+      s->preview_entry_count++;
     }
     closedir(dir);
+
+    if (s->preview_entry_count == 0) {
+      strcpy(s->preview, "[Empty directory]");
+      s->preview_is_dir = 0;
+    }
     return;
   }
 
@@ -205,6 +222,18 @@ static void build_entry_names(AppState *s) {
   }
 }
 
+// Build preview names array for directory preview
+static const char *g_preview_names[MAX_ENTRIES];
+static Color g_preview_colors[MAX_ENTRIES];
+
+static void build_preview_names(AppState *s) {
+  for (size_t i = 0; i < s->preview_entry_count; i++) {
+    g_preview_names[i] = s->preview_entries[i].name;
+    // Blue color for directories
+    g_preview_colors[i] = s->preview_entries[i].is_dir ? COLOR_INDEX(12) : COLOR_DEFAULT_INIT;
+  }
+}
+
 // Get pointer to n-th line in preview (0-indexed)
 static const char *get_preview_line(AppState *s, size_t line) {
   const char *p = s->preview;
@@ -219,6 +248,11 @@ static const char *get_preview_line(AppState *s, size_t line) {
 
 // Count total lines in preview
 static size_t count_preview_lines(AppState *s) {
+  // For directory preview, return entry count
+  if (s->preview_is_dir) {
+    return s->preview_entry_count;
+  }
+  // For text preview, count lines
   size_t count = 0;
   for (const char *p = s->preview; *p; p++) {
     if (*p == '\n')
@@ -233,8 +267,23 @@ static size_t count_preview_lines(AppState *s) {
 Widget *view(AppState *s) {
   build_entry_names(s);
 
-  // Get scrolled preview text
-  const char *preview_text = get_preview_line(s, s->preview_scroll);
+  Widget *preview_widget;
+  if (s->preview_is_dir && s->preview_entry_count > 0) {
+    // Directory preview with colored entries
+    build_preview_names(s);
+    size_t offset = s->preview_scroll;
+    if (offset >= s->preview_entry_count) {
+      offset = s->preview_entry_count > 0 ? s->preview_entry_count - 1 : 0;
+    }
+    size_t visible_count = s->preview_entry_count - offset;
+    preview_widget = LIST_COLORED(FILL, g_preview_names + offset,
+                                  g_preview_colors + offset, visible_count,
+                                  (size_t)-1); // No selection
+  } else {
+    // File preview or special messages
+    const char *preview_text = get_preview_line(s, s->preview_scroll);
+    preview_widget = TEXT(FILL, preview_text);
+  }
 
   return VBOX(
       FILL,
@@ -242,7 +291,7 @@ Widget *view(AppState *s) {
             HBOX(FILL,
                  LIST_COLORED(PCT(30), g_entry_names, g_entry_colors,
                               s->entry_count, s->selected),
-                 VLINE(LEN(1)), TEXT(FILL, preview_text))),
+                 VLINE(LEN(1)), preview_widget)),
       TEXT(LEN(1), s->status));
 }
 
