@@ -7,7 +7,7 @@ LIB_SRC = $(wildcard src/*.c)
 LIB_OBJ = $(LIB_SRC:.c=.o)
 
 # Examples
-EXAMPLES = examples/basic examples/layout examples/widget examples/filer examples/finder
+EXAMPLES = examples/basic examples/layout examples/widget examples/filer examples/finder examples/sysmon
 
 all: $(EXAMPLES)
 

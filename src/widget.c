@@ -167,6 +167,54 @@ Widget *widget_input(Constraint c, const char *text, size_t cursor,
   return w;
 }
 
+Widget *widget_gauge(Constraint c, double value, const char *label,
+                     Color color) {
+  Widget *w = arena_alloc(&g_frame_arena, sizeof(Widget));
+  if (!w)
+    return NULL;
+
+  w->type = WIDGET_GAUGE;
+  w->constraint = c;
+  w->gauge.value = value < 0.0 ? 0.0 : (value > 1.0 ? 1.0 : value);
+  w->gauge.label = label;
+  w->gauge.color = color;
+
+  return w;
+}
+
+Widget *widget_sparkline(Constraint c, const double *data, size_t count,
+                         Color color) {
+  Widget *w = arena_alloc(&g_frame_arena, sizeof(Widget));
+  if (!w)
+    return NULL;
+
+  w->type = WIDGET_SPARKLINE;
+  w->constraint = c;
+  w->sparkline.data = data;
+  w->sparkline.count = count;
+  w->sparkline.color = color;
+
+  return w;
+}
+
+Widget *widget_table(Constraint c, const char **headers, const char ***rows,
+                     size_t col_count, size_t row_count,
+                     const uint16_t *widths) {
+  Widget *w = arena_alloc(&g_frame_arena, sizeof(Widget));
+  if (!w)
+    return NULL;
+
+  w->type = WIDGET_TABLE;
+  w->constraint = c;
+  w->table.headers = headers;
+  w->table.rows = rows;
+  w->table.col_count = col_count;
+  w->table.row_count = row_count;
+  w->table.widths = widths;
+
+  return w;
+}
+
 void widget_list_set_selected(Widget *w, size_t selected) {
   if (w && w->type == WIDGET_LIST) {
     w->list.selected = selected;
@@ -317,6 +365,106 @@ void widget_render(Widget *w, Buffer *buf, Rect area) {
           (w->input.cursor < text_len) ? text[w->input.cursor] : ' ';
       buffer_set_cell_styled(buf, area.y, area.x + cursor_pos, cursor_char,
                              COLOR_INDEX(0), COLOR_INDEX(15), ATTR_NONE);
+    }
+    break;
+  }
+
+  case WIDGET_GAUGE: {
+    // Draw label if present
+    size_t label_len = 0;
+    if (w->gauge.label) {
+      label_len = strlen(w->gauge.label) + 1; // +1 for space
+      buffer_set_str(buf, area.y, area.x, w->gauge.label);
+    }
+
+    // Calculate bar dimensions
+    size_t bar_start = area.x + label_len;
+    size_t bar_width = area.width > label_len ? area.width - label_len : 0;
+    if (bar_width < 3)
+      break; // Need at least [=]
+
+    // Draw bar brackets
+    buffer_set_cell(buf, area.y, bar_start, '[');
+    buffer_set_cell(buf, area.y, bar_start + bar_width - 1, ']');
+
+    // Draw filled portion
+    size_t inner_width = bar_width - 2;
+    size_t filled = (size_t)(w->gauge.value * inner_width);
+    for (size_t i = 0; i < inner_width; i++) {
+      char ch = (i < filled) ? '=' : ' ';
+      buffer_set_cell_styled(buf, area.y, bar_start + 1 + i, ch, w->gauge.color,
+                             COLOR_DEFAULT_INIT, ATTR_NONE);
+    }
+    break;
+  }
+
+  case WIDGET_SPARKLINE: {
+    // Sparkline uses Unicode block characters: ▁▂▃▄▅▆▇█
+    // For simplicity, use ASCII: _ . - = #
+    static const char levels[] = " ._-=*#";
+    size_t num_levels = sizeof(levels) - 1;
+
+    if (!w->sparkline.data || w->sparkline.count == 0)
+      break;
+
+    size_t data_count = w->sparkline.count;
+    size_t display_count = area.width < data_count ? area.width : data_count;
+    size_t start_idx =
+        data_count > display_count ? data_count - display_count : 0;
+
+    for (size_t i = 0; i < display_count; i++) {
+      double val = w->sparkline.data[start_idx + i];
+      if (val < 0.0)
+        val = 0.0;
+      if (val > 1.0)
+        val = 1.0;
+      size_t level = (size_t)(val * (num_levels - 1));
+      buffer_set_cell_styled(buf, area.y, area.x + i, levels[level],
+                             w->sparkline.color, COLOR_DEFAULT_INIT, ATTR_NONE);
+    }
+    break;
+  }
+
+  case WIDGET_TABLE: {
+    if (!w->table.headers || w->table.col_count == 0)
+      break;
+
+    // Calculate column widths
+    size_t *col_widths =
+        arena_alloc(&g_frame_arena, sizeof(size_t) * w->table.col_count);
+    if (!col_widths)
+      break;
+
+    for (size_t c = 0; c < w->table.col_count; c++) {
+      if (w->table.widths) {
+        col_widths[c] = w->table.widths[c];
+      } else {
+        // Auto-calculate: use header length + 2
+        col_widths[c] = strlen(w->table.headers[c]) + 2;
+      }
+    }
+
+    // Render header
+    size_t col_x = area.x;
+    for (size_t c = 0; c < w->table.col_count && col_x < area.x + area.width;
+         c++) {
+      buffer_set_str_styled(buf, area.y, col_x, w->table.headers[c],
+                            COLOR_INDEX(14), COLOR_DEFAULT_INIT, ATTR_BOLD);
+      col_x += col_widths[c];
+    }
+
+    // Render rows
+    for (size_t r = 0; r < w->table.row_count && r + 1 < area.height; r++) {
+      if (!w->table.rows[r])
+        continue;
+      col_x = area.x;
+      for (size_t c = 0; c < w->table.col_count && col_x < area.x + area.width;
+           c++) {
+        if (w->table.rows[r][c]) {
+          buffer_set_str(buf, area.y + 1 + r, col_x, w->table.rows[r][c]);
+        }
+        col_x += col_widths[c];
+      }
     }
     break;
   }
