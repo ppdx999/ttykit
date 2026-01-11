@@ -247,6 +247,21 @@ Widget *widget_progress(Constraint c, double value, const char *label,
   return w;
 }
 
+Widget *widget_tabs(Constraint c, const char **labels, size_t count,
+                    size_t selected) {
+  Widget *w = arena_alloc(&g_frame_arena, sizeof(Widget));
+  if (!w)
+    return NULL;
+
+  w->type = WIDGET_TABS;
+  w->constraint = c;
+  w->tabs.labels = labels;
+  w->tabs.count = count;
+  w->tabs.selected = selected;
+
+  return w;
+}
+
 void widget_list_set_selected(Widget *w, size_t selected) {
   if (w && w->type == WIDGET_LIST) {
     w->list.selected = selected;
@@ -575,6 +590,55 @@ void widget_render(Widget *w, Buffer *buf, Rect area) {
       char pct[8];
       snprintf(pct, sizeof(pct), "%3d%%", (int)(w->progress.value * 100));
       buffer_set_str(buf, area.y, bar_start + bar_width + 1, pct);
+    }
+    break;
+  }
+
+  case WIDGET_TABS: {
+    if (!w->tabs.labels || w->tabs.count == 0)
+      break;
+
+    size_t x = area.x;
+    for (size_t i = 0; i < w->tabs.count && x < area.x + area.width; i++) {
+      const char *label = w->tabs.labels[i];
+      if (!label)
+        continue;
+
+      size_t label_len = strlen(label);
+      int is_selected = (i == w->tabs.selected);
+
+      // Draw tab with padding
+      if (is_selected) {
+        // Selected tab: highlighted
+        buffer_set_cell_styled(buf, area.y, x, '[', COLOR_INDEX(14),
+                               COLOR_DEFAULT_INIT, ATTR_BOLD);
+        for (size_t j = 0; j < label_len && x + 1 + j < area.x + area.width;
+             j++) {
+          buffer_set_cell_styled(buf, area.y, x + 1 + j, label[j],
+                                 COLOR_INDEX(14), COLOR_DEFAULT_INIT,
+                                 ATTR_BOLD);
+        }
+        if (x + 1 + label_len < area.x + area.width) {
+          buffer_set_cell_styled(buf, area.y, x + 1 + label_len, ']',
+                                 COLOR_INDEX(14), COLOR_DEFAULT_INIT,
+                                 ATTR_BOLD);
+        }
+      } else {
+        // Unselected tab: dimmed
+        buffer_set_cell_styled(buf, area.y, x, ' ', COLOR_INDEX(8),
+                               COLOR_DEFAULT_INIT, ATTR_NONE);
+        for (size_t j = 0; j < label_len && x + 1 + j < area.x + area.width;
+             j++) {
+          buffer_set_cell_styled(buf, area.y, x + 1 + j, label[j],
+                                 COLOR_INDEX(8), COLOR_DEFAULT_INIT, ATTR_NONE);
+        }
+        if (x + 1 + label_len < area.x + area.width) {
+          buffer_set_cell_styled(buf, area.y, x + 1 + label_len, ' ',
+                                 COLOR_INDEX(8), COLOR_DEFAULT_INIT, ATTR_NONE);
+        }
+      }
+
+      x += label_len + 3; // label + brackets/spaces + separator
     }
     break;
   }

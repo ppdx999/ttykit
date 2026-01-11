@@ -20,7 +20,8 @@ typedef enum {
   WIDGET_SPARKLINE,
   WIDGET_TABLE,
   WIDGET_CHECKBOX,
-  WIDGET_PROGRESS
+  WIDGET_PROGRESS,
+  WIDGET_TABS
 } WidgetType;
 
 // Forward declaration
@@ -81,6 +82,11 @@ struct Widget {
       const char *label;     // Optional label
       int show_percent;      // Show percentage text
     } progress;
+    struct {
+      const char **labels;   // Tab labels
+      size_t count;          // Number of tabs
+      size_t selected;       // Currently selected tab
+    } tabs;
   };
 };
 
@@ -111,6 +117,8 @@ struct Widget {
   widget_checkbox((c), (items), (checked), (count), (selected))
 #define PROGRESS(c, value, label, show_pct) \
   widget_progress((c), (value), (label), (show_pct))
+#define TABS(c, labels, count, selected) \
+  widget_tabs((c), (labels), (count), (selected))
 
 // Frame arena management
 void ui_frame_begin(void);
@@ -138,6 +146,8 @@ Widget *widget_checkbox(Constraint c, const char **items, const int *checked,
                         size_t count, size_t selected);
 Widget *widget_progress(Constraint c, double value, const char *label,
                         int show_percent);
+Widget *widget_tabs(Constraint c, const char **labels, size_t count,
+                    size_t selected);
 
 // Set selected index for list widget
 void widget_list_set_selected(Widget *w, size_t selected);
