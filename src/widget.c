@@ -1,4 +1,5 @@
 #include "widget.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -211,6 +212,37 @@ Widget *widget_table(Constraint c, const char **headers, const char ***rows,
   w->table.col_count = col_count;
   w->table.row_count = row_count;
   w->table.widths = widths;
+
+  return w;
+}
+
+Widget *widget_checkbox(Constraint c, const char **items, const int *checked,
+                        size_t count, size_t selected) {
+  Widget *w = arena_alloc(&g_frame_arena, sizeof(Widget));
+  if (!w)
+    return NULL;
+
+  w->type = WIDGET_CHECKBOX;
+  w->constraint = c;
+  w->checkbox.items = items;
+  w->checkbox.checked = checked;
+  w->checkbox.count = count;
+  w->checkbox.selected = selected;
+
+  return w;
+}
+
+Widget *widget_progress(Constraint c, double value, const char *label,
+                        int show_percent) {
+  Widget *w = arena_alloc(&g_frame_arena, sizeof(Widget));
+  if (!w)
+    return NULL;
+
+  w->type = WIDGET_PROGRESS;
+  w->constraint = c;
+  w->progress.value = value < 0.0 ? 0.0 : (value > 1.0 ? 1.0 : value);
+  w->progress.label = label;
+  w->progress.show_percent = show_percent;
 
   return w;
 }
@@ -465,6 +497,84 @@ void widget_render(Widget *w, Buffer *buf, Rect area) {
         }
         col_x += col_widths[c];
       }
+    }
+    break;
+  }
+
+  case WIDGET_CHECKBOX: {
+    if (!w->checkbox.items)
+      break;
+
+    for (size_t i = 0; i < w->checkbox.count && i < area.height; i++) {
+      const char *item = w->checkbox.items[i];
+      if (!item)
+        continue;
+
+      int is_checked = w->checkbox.checked && w->checkbox.checked[i];
+      int is_selected = (i == w->checkbox.selected);
+
+      // Draw checkbox
+      const char *box = is_checked ? "[x] " : "[ ] ";
+      Color fg = is_selected ? COLOR_INDEX(0) : COLOR_DEFAULT_INIT;
+      Color bg = is_selected ? COLOR_INDEX(14) : COLOR_DEFAULT_INIT;
+      uint8_t attrs = is_selected ? ATTR_BOLD : ATTR_NONE;
+
+      // Fill row with background if selected
+      if (is_selected) {
+        for (uint16_t c = area.x; c < area.x + area.width; c++) {
+          buffer_set_cell_styled(buf, area.y + i, c, ' ', fg, bg, attrs);
+        }
+      }
+
+      // Draw checkbox and label
+      buffer_set_str_styled(buf, area.y + i, area.x, box, fg, bg, attrs);
+      if (is_checked) {
+        // Strikethrough for completed items
+        buffer_set_str_styled(buf, area.y + i, area.x + 4, item,
+                              COLOR_INDEX(8), bg, attrs);
+      } else {
+        buffer_set_str_styled(buf, area.y + i, area.x + 4, item, fg, bg, attrs);
+      }
+    }
+    break;
+  }
+
+  case WIDGET_PROGRESS: {
+    // Draw label if present
+    size_t label_len = 0;
+    if (w->progress.label) {
+      label_len = strlen(w->progress.label) + 1;
+      buffer_set_str(buf, area.y, area.x, w->progress.label);
+    }
+
+    // Reserve space for percentage if needed
+    size_t pct_len = w->progress.show_percent ? 5 : 0; // " 100%"
+
+    // Calculate bar dimensions
+    size_t bar_start = area.x + label_len;
+    size_t bar_width =
+        area.width > label_len + pct_len ? area.width - label_len - pct_len : 0;
+    if (bar_width < 3)
+      break;
+
+    // Draw bar
+    buffer_set_cell(buf, area.y, bar_start, '[');
+    buffer_set_cell(buf, area.y, bar_start + bar_width - 1, ']');
+
+    size_t inner_width = bar_width - 2;
+    size_t filled = (size_t)(w->progress.value * inner_width);
+    for (size_t i = 0; i < inner_width; i++) {
+      char ch = (i < filled) ? '#' : '-';
+      Color color = (i < filled) ? COLOR_INDEX(10) : COLOR_INDEX(8);
+      buffer_set_cell_styled(buf, area.y, bar_start + 1 + i, ch, color,
+                             COLOR_DEFAULT_INIT, ATTR_NONE);
+    }
+
+    // Draw percentage
+    if (w->progress.show_percent) {
+      char pct[8];
+      snprintf(pct, sizeof(pct), "%3d%%", (int)(w->progress.value * 100));
+      buffer_set_str(buf, area.y, bar_start + bar_width + 1, pct);
     }
     break;
   }

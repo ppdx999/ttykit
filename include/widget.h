@@ -18,7 +18,9 @@ typedef enum {
   WIDGET_INPUT,
   WIDGET_GAUGE,
   WIDGET_SPARKLINE,
-  WIDGET_TABLE
+  WIDGET_TABLE,
+  WIDGET_CHECKBOX,
+  WIDGET_PROGRESS
 } WidgetType;
 
 // Forward declaration
@@ -68,6 +70,17 @@ struct Widget {
       size_t row_count;       // Number of rows
       const uint16_t *widths; // Column widths (NULL = auto)
     } table;
+    struct {
+      const char **items;    // Item labels
+      const int *checked;    // Check states (0 = unchecked, 1 = checked)
+      size_t count;          // Number of items
+      size_t selected;       // Currently selected item
+    } checkbox;
+    struct {
+      double value;          // 0.0 to 1.0
+      const char *label;     // Optional label
+      int show_percent;      // Show percentage text
+    } progress;
   };
 };
 
@@ -94,6 +107,10 @@ struct Widget {
 #define SPARKLINE(c, data, count, color) widget_sparkline((c), (data), (count), (color))
 #define TABLE(c, headers, rows, cols, row_cnt, widths) \
   widget_table((c), (headers), (rows), (cols), (row_cnt), (widths))
+#define CHECKBOX(c, items, checked, count, selected) \
+  widget_checkbox((c), (items), (checked), (count), (selected))
+#define PROGRESS(c, value, label, show_pct) \
+  widget_progress((c), (value), (label), (show_pct))
 
 // Frame arena management
 void ui_frame_begin(void);
@@ -117,6 +134,10 @@ Widget *widget_sparkline(Constraint c, const double *data, size_t count,
 Widget *widget_table(Constraint c, const char **headers, const char ***rows,
                      size_t col_count, size_t row_count,
                      const uint16_t *widths);
+Widget *widget_checkbox(Constraint c, const char **items, const int *checked,
+                        size_t count, size_t selected);
+Widget *widget_progress(Constraint c, double value, const char *label,
+                        int show_percent);
 
 // Set selected index for list widget
 void widget_list_set_selected(Widget *w, size_t selected);
