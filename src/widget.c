@@ -114,8 +114,8 @@ Widget *widget_block(Constraint c, const char *title, Widget *child) {
   return w;
 }
 
-Widget *widget_list(Constraint c, const char **items, size_t count,
-                    size_t selected) {
+Widget *widget_list(Constraint c, const char **items, const Color *colors,
+                    size_t count, size_t selected) {
   Widget *w = arena_alloc(&g_frame_arena, sizeof(Widget));
   if (!w)
     return NULL;
@@ -123,6 +123,7 @@ Widget *widget_list(Constraint c, const char **items, size_t count,
   w->type = WIDGET_LIST;
   w->constraint = c;
   w->list.items = items;
+  w->list.colors = colors;
   w->list.count = count;
   w->list.selected = selected;
 
@@ -186,7 +187,7 @@ static void render_text(Buffer *buf, Rect area, const char *text) {
 static void render_block(Buffer *buf, Rect area, const char *title,
                          Widget *child);
 static void render_list(Buffer *buf, Rect area, const char **items,
-                        size_t count, size_t selected);
+                        const Color *colors, size_t count, size_t selected);
 
 void widget_render(Widget *w, Buffer *buf, Rect area) {
   if (!w || rect_is_empty(area))
@@ -233,7 +234,8 @@ void widget_render(Widget *w, Buffer *buf, Rect area) {
     break;
 
   case WIDGET_LIST:
-    render_list(buf, area, w->list.items, w->list.count, w->list.selected);
+    render_list(buf, area, w->list.items, w->list.colors, w->list.count,
+                w->list.selected);
     break;
 
   case WIDGET_VLINE: {
@@ -319,7 +321,7 @@ static void render_block(Buffer *buf, Rect area, const char *title,
 }
 
 static void render_list(Buffer *buf, Rect area, const char **items,
-                        size_t count, size_t selected) {
+                        const Color *colors, size_t count, size_t selected) {
   if (rect_is_empty(area) || !items)
     return;
 
@@ -329,7 +331,11 @@ static void render_list(Buffer *buf, Rect area, const char **items,
       continue;
 
     int is_selected = (i == selected);
-    Color fg = is_selected ? COLOR_INDEX(0) : COLOR_DEFAULT_INIT;
+    Color item_color =
+        (colors && colors[i].type != COLOR_DEFAULT)
+            ? colors[i]
+            : COLOR_DEFAULT_INIT;
+    Color fg = is_selected ? COLOR_INDEX(0) : item_color;
     Color bg = is_selected ? COLOR_INDEX(14) : COLOR_DEFAULT_INIT;
     uint8_t attrs = is_selected ? ATTR_BOLD : ATTR_NONE;
 

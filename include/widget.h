@@ -37,6 +37,7 @@ struct Widget {
     } block;
     struct {
       const char **items;
+      const Color *colors; // Optional per-item foreground colors (NULL = default)
       size_t count;
       size_t selected;
     } list;
@@ -57,7 +58,8 @@ struct Widget {
 // Content widgets
 #define TEXT(c, s) widget_text((c), (s))
 #define BLOCK(c, t, ch) widget_block((c), (t), (ch))
-#define LIST(c, i, n, s) widget_list((c), (i), (n), (s))
+#define LIST(c, i, n, s) widget_list((c), (i), NULL, (n), (s))
+#define LIST_COLORED(c, i, colors, n, s) widget_list((c), (i), (colors), (n), (s))
 #define VLINE(c) widget_vline((c))
 
 // Frame arena management
@@ -69,8 +71,8 @@ Widget *widget_vbox(Constraint c, Widget **children);
 Widget *widget_hbox(Constraint c, Widget **children);
 Widget *widget_text(Constraint c, const char *text);
 Widget *widget_block(Constraint c, const char *title, Widget *child);
-Widget *widget_list(Constraint c, const char **items, size_t count,
-                    size_t selected);
+Widget *widget_list(Constraint c, const char **items, const Color *colors,
+                    size_t count, size_t selected);
 Widget *widget_vline(Constraint c);
 
 // Set selected index for list widget

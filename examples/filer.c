@@ -195,10 +195,13 @@ static void enter_dir(AppState *s) {
 
 // Build entry names array for LIST widget
 static const char *g_entry_names[MAX_ENTRIES];
+static Color g_entry_colors[MAX_ENTRIES];
 
 static void build_entry_names(AppState *s) {
   for (size_t i = 0; i < s->entry_count; i++) {
     g_entry_names[i] = s->entries[i].name;
+    // Blue color for directories
+    g_entry_colors[i] = s->entries[i].is_dir ? COLOR_INDEX(12) : COLOR_DEFAULT_INIT;
   }
 }
 
@@ -237,7 +240,8 @@ Widget *view(AppState *s) {
       FILL,
       BLOCK(FILL, s->cwd,
             HBOX(FILL,
-                 LIST(PCT(30), g_entry_names, s->entry_count, s->selected),
+                 LIST_COLORED(PCT(30), g_entry_names, g_entry_colors,
+                              s->entry_count, s->selected),
                  VLINE(LEN(1)), TEXT(FILL, preview_text))),
       TEXT(LEN(1), s->status));
 }
