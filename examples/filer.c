@@ -267,34 +267,31 @@ static size_t count_preview_lines(AppState *s) {
   return count;
 }
 
-// Declarative view function
-Widget *view(AppState *s) {
-  build_entry_names(s);
-
-  Widget *preview_widget;
+// Preview widget builder
+static Widget *preview_widget(AppState *s) {
   if (s->preview_is_dir && s->preview_entry_count > 0) {
-    // Directory preview with colored entries
     build_preview_names(s);
     size_t offset = s->preview_scroll;
     if (offset >= s->preview_entry_count) {
       offset = s->preview_entry_count > 0 ? s->preview_entry_count - 1 : 0;
     }
     size_t visible_count = s->preview_entry_count - offset;
-    preview_widget = LIST_COLORED(FILL, g_preview_names + offset,
-                                  g_preview_colors + offset, visible_count,
-                                  (size_t)-1); // No selection
-  } else {
-    // File preview or special messages
-    const char *preview_text = get_preview_line(s, s->preview_scroll);
-    preview_widget = TEXT(FILL, preview_text);
+    return LIST_COLORED(FILL, g_preview_names + offset,
+                        g_preview_colors + offset, visible_count, (size_t)-1);
   }
+  return TEXT(FILL, get_preview_line(s, s->preview_scroll));
+}
+
+// Declarative view function
+Widget *view(AppState *s) {
+  build_entry_names(s);
 
   return VBOX(FILL,
               BLOCK(FILL, s->cwd,
                     HBOX(FILL,
                          LIST_COLORED(PCT(30), g_entry_names, g_entry_colors,
                                       s->entry_count, s->selected),
-                         VLINE(LEN(1)), preview_widget)),
+                         VLINE(LEN(1)), preview_widget(s))),
               TEXT(LEN(1), s->status));
 }
 
