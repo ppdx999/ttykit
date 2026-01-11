@@ -13,7 +13,9 @@ typedef enum {
   WIDGET_TEXT,
   WIDGET_BLOCK,
   WIDGET_LIST,
-  WIDGET_VLINE
+  WIDGET_VLINE,
+  WIDGET_HLINE,
+  WIDGET_INPUT
 } WidgetType;
 
 // Forward declaration
@@ -41,6 +43,11 @@ struct Widget {
       size_t count;
       size_t selected;
     } list;
+    struct {
+      const char *text;   // Current input text
+      size_t cursor;      // Cursor position
+      const char *prompt; // Optional prompt (e.g., "> ")
+    } input;
   };
 };
 
@@ -61,6 +68,8 @@ struct Widget {
 #define LIST(c, i, n, s) widget_list((c), (i), NULL, (n), (s))
 #define LIST_COLORED(c, i, colors, n, s) widget_list((c), (i), (colors), (n), (s))
 #define VLINE(c) widget_vline((c))
+#define HLINE(c) widget_hline((c))
+#define INPUT(c, text, cursor, prompt) widget_input((c), (text), (cursor), (prompt))
 
 // Frame arena management
 void ui_frame_begin(void);
@@ -74,6 +83,9 @@ Widget *widget_block(Constraint c, const char *title, Widget *child);
 Widget *widget_list(Constraint c, const char **items, const Color *colors,
                     size_t count, size_t selected);
 Widget *widget_vline(Constraint c);
+Widget *widget_hline(Constraint c);
+Widget *widget_input(Constraint c, const char *text, size_t cursor,
+                     const char *prompt);
 
 // Set selected index for list widget
 void widget_list_set_selected(Widget *w, size_t selected);

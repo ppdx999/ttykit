@@ -1,4 +1,5 @@
 #include "ttykit.h"
+#include <fcntl.h>
 #include <stdio.h>
 #include <sys/ioctl.h>
 #include <termios.h>
@@ -6,15 +7,24 @@
 
 static struct termios orig_termios;
 static int raw_mode_enabled = 0;
+static int tty_fd = -1;
+
+int tty_get_fd(void) { return tty_fd; }
 
 int tty_enable_raw_mode(void) {
   if (raw_mode_enabled)
     return 0;
-  if (!isatty(STDIN_FILENO))
+
+  // Open /dev/tty directly to handle piped stdin
+  tty_fd = open("/dev/tty", O_RDWR);
+  if (tty_fd == -1)
     return -1;
 
-  if (tcgetattr(STDIN_FILENO, &orig_termios) == -1)
+  if (tcgetattr(tty_fd, &orig_termios) == -1) {
+    close(tty_fd);
+    tty_fd = -1;
     return -1;
+  }
 
   struct termios raw = orig_termios;
 
@@ -34,8 +44,11 @@ int tty_enable_raw_mode(void) {
   raw.c_cc[VMIN] = 1;
   raw.c_cc[VTIME] = 0;
 
-  if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1)
+  if (tcsetattr(tty_fd, TCSAFLUSH, &raw) == -1) {
+    close(tty_fd);
+    tty_fd = -1;
     return -1;
+  }
 
   raw_mode_enabled = 1;
   return 0;
@@ -43,7 +56,9 @@ int tty_enable_raw_mode(void) {
 
 void tty_disable_raw_mode(void) {
   if (raw_mode_enabled) {
-    tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
+    tcsetattr(tty_fd, TCSAFLUSH, &orig_termios);
+    close(tty_fd);
+    tty_fd = -1;
     raw_mode_enabled = 0;
   }
 }

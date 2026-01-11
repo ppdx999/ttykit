@@ -141,6 +141,32 @@ Widget *widget_vline(Constraint c) {
   return w;
 }
 
+Widget *widget_hline(Constraint c) {
+  Widget *w = arena_alloc(&g_frame_arena, sizeof(Widget));
+  if (!w)
+    return NULL;
+
+  w->type = WIDGET_HLINE;
+  w->constraint = c;
+
+  return w;
+}
+
+Widget *widget_input(Constraint c, const char *text, size_t cursor,
+                     const char *prompt) {
+  Widget *w = arena_alloc(&g_frame_arena, sizeof(Widget));
+  if (!w)
+    return NULL;
+
+  w->type = WIDGET_INPUT;
+  w->constraint = c;
+  w->input.text = text ? text : "";
+  w->input.cursor = cursor;
+  w->input.prompt = prompt;
+
+  return w;
+}
+
 void widget_list_set_selected(Widget *w, size_t selected) {
   if (w && w->type == WIDGET_LIST) {
     w->list.selected = selected;
@@ -239,10 +265,58 @@ void widget_render(Widget *w, Buffer *buf, Rect area) {
     break;
 
   case WIDGET_VLINE: {
-    Color line_color = COLOR_INDEX(8);  // Gray
+    Color line_color = COLOR_INDEX(8); // Gray
     for (uint16_t r = area.y; r < area.y + area.height; r++) {
       buffer_set_cell_styled(buf, r, area.x, '|', line_color,
                              COLOR_DEFAULT_INIT, ATTR_NONE);
+    }
+    break;
+  }
+
+  case WIDGET_HLINE: {
+    Color line_color = COLOR_INDEX(8); // Gray
+    for (uint16_t c = area.x; c < area.x + area.width; c++) {
+      buffer_set_cell_styled(buf, area.y, c, '-', line_color,
+                             COLOR_DEFAULT_INIT, ATTR_NONE);
+    }
+    break;
+  }
+
+  case WIDGET_INPUT: {
+    // Draw prompt
+    size_t prompt_len = 0;
+    if (w->input.prompt) {
+      prompt_len = strlen(w->input.prompt);
+      buffer_set_str_styled(buf, area.y, area.x, w->input.prompt,
+                            COLOR_INDEX(14), COLOR_DEFAULT_INIT, ATTR_BOLD);
+    }
+
+    // Draw input text
+    const char *text = w->input.text ? w->input.text : "";
+    size_t text_len = strlen(text);
+    size_t available = area.width > prompt_len ? area.width - prompt_len : 0;
+
+    if (text_len > available) {
+      // Scroll text to show cursor
+      size_t start = 0;
+      if (w->input.cursor > available - 1) {
+        start = w->input.cursor - available + 1;
+      }
+      buffer_set_str(buf, area.y, area.x + prompt_len, text + start);
+    } else {
+      buffer_set_str(buf, area.y, area.x + prompt_len, text);
+    }
+
+    // Draw cursor (reverse video)
+    size_t cursor_pos = prompt_len + w->input.cursor;
+    if (w->input.cursor > strlen(text)) {
+      cursor_pos = prompt_len + strlen(text);
+    }
+    if (cursor_pos < area.width) {
+      char cursor_char =
+          (w->input.cursor < text_len) ? text[w->input.cursor] : ' ';
+      buffer_set_cell_styled(buf, area.y, area.x + cursor_pos, cursor_char,
+                             COLOR_INDEX(0), COLOR_INDEX(15), ATTR_NONE);
     }
     break;
   }

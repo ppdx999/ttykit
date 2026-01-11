@@ -219,10 +219,15 @@ int event_poll(Event *event, int timeout_ms) {
     return 1;
   }
 
+  int fd = tty_get_fd();
+  if (fd < 0) {
+    return -1;
+  }
+
   // Set up select for input with timeout
   fd_set fds;
   FD_ZERO(&fds);
-  FD_SET(STDIN_FILENO, &fds);
+  FD_SET(fd, &fds);
 
   struct timeval tv;
   struct timeval *tvp = NULL;
@@ -232,7 +237,7 @@ int event_poll(Event *event, int timeout_ms) {
     tvp = &tv;
   }
 
-  int ret = select(STDIN_FILENO + 1, &fds, NULL, NULL, tvp);
+  int ret = select(fd + 1, &fds, NULL, NULL, tvp);
 
   // Check resize again (signal may have interrupted select)
   if (resize_pending) {
@@ -252,7 +257,7 @@ int event_poll(Event *event, int timeout_ms) {
 
   // Read input
   char buf[16];
-  int len = read(STDIN_FILENO, buf, sizeof(buf));
+  int len = read(fd, buf, sizeof(buf));
   if (len <= 0) {
     return -1;
   }
